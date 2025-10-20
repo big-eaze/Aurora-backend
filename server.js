@@ -15,6 +15,7 @@ import assignmentRoutes from './routes/assignmentRoutes.js';
 import staffAttendanceRoutes from './routes/staffAttendanceRoutes.js';
 import studentAttendanceRoutes from './routes/studentAttendanceRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import fs from 'fs';
 
 dotenv.config();
 const app = express();
@@ -57,15 +58,18 @@ app.use('/staff-attendance', staffAttendanceRoutes);
 app.use('/student-attendance', studentAttendanceRoutes);
 app.use('/auth', authRoutes);
 
-// ====== STATIC BUILD (PRODUCTION) ======
+// ====== STATIC BUILD (SAFE FOR DEPLOY) ======
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, 'dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-  });
+  const distPath = path.join(__dirname, 'dist');
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
 }
 
 // ====== ERROR HANDLER ======
@@ -74,10 +78,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong', error: err.message });
 });
 
-// ====== SERVER START ======
-const PORT = process.env.PORT || 8080;
-if (process.env.NODE_ENV !== "production") {
+// ====== LOCAL ONLY SERVER ======
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => console.log(`Server running locally on port ${PORT}`));
 }
 
+// Export for Vercel
 export default app;
