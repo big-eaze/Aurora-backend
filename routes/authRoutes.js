@@ -2,20 +2,23 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { body, validationResult } from "express-validator";
-import fs from "fs";
 import nodemailer from "nodemailer";
 import { supabase } from "../config/supabaseClient.js";
 import adminIds from "../defaultData/defaultAdmin.js";
 import authMiddleware from "../middleware/authMiddleware.js";
 
-// Load config
-const config = JSON.parse(fs.readFileSync(new URL("../config/config.json", import.meta.url)));
-const JWT_SECRET = config.JWT_SECRET;
+// ==========================
+// 🔐 Environment Config
+// ==========================
+const JWT_SECRET = process.env.JWT_SECRET;
 
-const router = express.Router();
+const config = {
+  EMAIL_USER: process.env.EMAIL_USER,
+  EMAIL_PASS: process.env.EMAIL_PASS,
+};
 
 // ==========================
-// 📧 Nodemailer transporter
+// 📧 Nodemailer Transporter
 // ==========================
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -24,6 +27,8 @@ const transporter = nodemailer.createTransport({
     pass: config.EMAIL_PASS,
   },
 });
+
+const router = express.Router();
 
 // ==========================
 // 🧍 Public Routes
@@ -93,7 +98,7 @@ router.post(
           return res.status(400).json({ message: "Admission number not found in student database" });
       }
 
-      // Uniqueness check
+      // Check uniqueness
       const { data: existingUser } = await supabase
         .from("Users")
         .select("*")
@@ -104,22 +109,26 @@ router.post(
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Insert user into Supabase
-      const { data: newUser, error } = await supabase.from("Users").insert([
-        {
-          firstName,
-          lastName,
-          username,
-          email: email || null,
-          password: hashedPassword,
-          role,
-          adminId: role === "admin" ? adminId : null,
-          staffId: role === "staff" ? staffId : null,
-          admissionNumber: role === "student" ? admissionNumber : null,
-          class: role === "staff" ? staffClass : null,
-          subject: role === "staff" ? subject : null,
-        },
-      ]).select().single();
+      // Insert new user
+      const { data: newUser, error } = await supabase
+        .from("Users")
+        .insert([
+          {
+            firstName,
+            lastName,
+            username,
+            email: email || null,
+            password: hashedPassword,
+            role,
+            adminId: role === "admin" ? adminId : null,
+            staffId: role === "staff" ? staffId : null,
+            admissionNumber: role === "student" ? admissionNumber : null,
+            class: role === "staff" ? staffClass : null,
+            subject: role === "staff" ? subject : null,
+          },
+        ])
+        .select()
+        .single();
 
       if (error) throw error;
 
