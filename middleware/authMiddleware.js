@@ -1,10 +1,11 @@
 import jwt from "jsonwebtoken";
-import fs from "fs";
 
-// ✅ Read from process.env
-const config = JSON.parse(fs.readFileSync(new URL("../config/config.json", import.meta.url)));
-const JWT_SECRET = config.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET;
 
+if (!JWT_SECRET) {
+  console.error("❌ Missing JWT_SECRET in environment variables");
+  throw new Error("Server configuration error: JWT_SECRET not set");
+}
 
 const authMiddleware = (req, res, next) => {
   const authHeader = req.header("Authorization");
