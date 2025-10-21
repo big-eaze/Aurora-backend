@@ -14,7 +14,6 @@ const convertTo12HourFormat = (time) => {
   return `${adjustedHours}:${minutes.toString().padStart(2, "0")} ${period}`;
 };
 
-
 // 🟢 GET all announcements (flattened)
 router.get("/", requireRole("student", "staff", "admin"), async (req, res) => {
   try {
@@ -25,17 +24,17 @@ router.get("/", requireRole("student", "staff", "admin"), async (req, res) => {
 
     if (error) throw error;
 
-    // Flatten announcements
+    // Flatten announcements array
     const flattened = data.flatMap((item) => {
       try {
         const annArray = JSON.parse(item.announcements);
         return annArray.map((ann, index) => ({
-          id: `${item.id}-${index}`, // unique key
+          id: `${item.id}-${index}`,
           title: ann.title,
-          message: ann.message,
+          message: ann.message, // ✅ now using 'message'
           date: ann.date,
           time: ann.time,
-          receiver: item.audience, // your DB column
+          receiver: item.audience,
           createdAt: item.createdAt,
         }));
       } catch {
@@ -49,15 +48,12 @@ router.get("/", requireRole("student", "staff", "admin"), async (req, res) => {
   }
 });
 
-
-// ============================
 // 🟢 POST new announcement
-// ============================
 router.post("/", requireRole("admin"), async (req, res) => {
   try {
-    const { title, date, time, content, receiver } = req.body;
+    const { title, date, time, message, receiver } = req.body;
 
-    if (!title || !date || !time || !content || !receiver) {
+    if (!title || !date || !time || !message || !receiver) {
       return res.status(400).json({ error: "All fields are required." });
     }
 
@@ -71,14 +67,14 @@ router.post("/", requireRole("admin"), async (req, res) => {
           title,
           date,
           time: formattedTime,
-          content,
+          message,
           receiver: "staff",
         },
         {
           title,
           date,
           time: formattedTime,
-          content,
+          message,
           receiver: "students",
         },
       ];
@@ -88,7 +84,7 @@ router.post("/", requireRole("admin"), async (req, res) => {
           title,
           date,
           time: formattedTime,
-          content,
+          message,
           receiver,
         },
       ];
@@ -99,14 +95,17 @@ router.post("/", requireRole("admin"), async (req, res) => {
       .insert([
         {
           audience: receiver === "both" ? "both" : receiver,
-          announcements: newAnnouncements,
+          announcements: JSON.stringify(newAnnouncements), // ✅ make sure it's stored as JSON
         },
       ])
       .select();
 
     if (error) throw error;
 
-    res.status(201).json({ message: "Announcement(s) created successfully", data });
+    res.status(201).json({
+      message: "Announcement(s) created successfully",
+      data,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
